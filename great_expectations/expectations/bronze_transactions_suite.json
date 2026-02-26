@@ -1,0 +1,122 @@
+{
+    "expectation_suite_name": "bronze_transactions_suite",
+    "ge_cloud_id": null,
+    "data_asset_type": null,
+    "meta": {
+        "great_expectations_version": "0.17.19",
+        "description": "Data quality expectations for Bronze transactions table"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_table_columns_to_match_ordered_list",
+            "kwargs": {
+                "column_list": [
+                    "transaction_id",
+                    "account_id",
+                    "transaction_type",
+                    "amount",
+                    "currency",
+                    "merchant_name",
+                    "merchant_category",
+                    "transaction_timestamp",
+                    "country",
+                    "status",
+                    "is_international"
+                ]
+            },
+            "meta": {
+                "purpose": "Ensure schema consistency"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "transaction_id"
+            },
+            "meta": {
+                "purpose": "Primary key must not be null"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_unique",
+            "kwargs": {
+                "column": "transaction_id"
+            },
+            "meta": {
+                "purpose": "Primary key uniqueness"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "account_id"
+            },
+            "meta": {
+                "purpose": "Foreign key must not be null"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_in_set",
+            "kwargs": {
+                "column": "transaction_type",
+                "value_set": [
+                    "DEBIT",
+                    "CREDIT"
+                ]
+            },
+            "meta": {
+                "purpose": "Valid transaction types"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "amount",
+                "min_value": 0.01,
+                "max_value": 10000000
+            },
+            "meta": {
+                "purpose": "Amount must be positive and reasonable"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_in_set",
+            "kwargs": {
+                "column": "currency",
+                "value_set": [
+                    "AED",
+                    "USD",
+                    "EUR",
+                    "GBP"
+                ]
+            },
+            "meta": {
+                "purpose": "Valid currency codes"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_in_set",
+            "kwargs": {
+                "column": "status",
+                "value_set": [
+                    "COMPLETED",
+                    "PENDING",
+                    "FAILED"
+                ]
+            },
+            "meta": {
+                "purpose": "Valid transaction statuses"
+            }
+        },
+        {
+            "expectation_type": "expect_table_row_count_to_be_between",
+            "kwargs": {
+                "min_value": 1000,
+                "max_value": 10000000
+            },
+            "meta": {
+                "purpose": "Table should have significant data"
+            }
+        }
+    ]
+}

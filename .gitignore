@@ -1,0 +1,66 @@
+# =============================================================================
+# Banking Lakehouse .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Environment Variables (keep .env.example, ignore actual .env)
+# .env  # Uncomment in production; kept for demo purposes
+
+# Docker
+docker/logs/
+
+# Data (large files)
+data/lakehouse/
+data/sample/*.csv
+data/sample/*.json
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Airflow
+airflow-dags/__pycache__/
+airflow-logs/
+
+# Great Expectations
+great_expectations/uncommitted/
+great_expectations/data_docs/
+
+# dbt
+dbt-project/target/
+dbt-project/dbt_packages/
+dbt-project/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

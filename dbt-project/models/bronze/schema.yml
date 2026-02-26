@@ -1,0 +1,133 @@
+# =============================================================================
+# Bronze Layer - Source Definitions
+# =============================================================================
+
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw ingested banking data in Delta Lake Bronze layer"
+    schema: bronze
+    tables:
+      - name: customers
+        description: "Raw customer profile data from core banking system"
+        columns:
+          - name: customer_id
+            description: "Unique customer identifier"
+            tests:
+              - not_null
+              - unique
+          - name: first_name
+            description: "Customer first name (PII)"
+          - name: last_name
+            description: "Customer last name (PII)"
+          - name: email
+            description: "Customer email address (PII)"
+          - name: phone
+            description: "Customer phone number (PII)"
+          - name: date_of_birth
+            description: "Customer date of birth (PII)"
+          - name: nationality
+            description: "Customer nationality"
+          - name: risk_score
+            description: "KYC risk score (1-100)"
+          - name: kyc_status
+            description: "KYC verification status"
+            tests:
+              - accepted_values:
+                  values: ['VERIFIED', 'PENDING', 'REJECTED']
+          - name: onboarding_date
+            description: "Date of customer onboarding"
+          - name: customer_segment
+            description: "Customer segment classification"
+            tests:
+              - accepted_values:
+                  values: ['RETAIL', 'CORPORATE', 'PRIVATE_BANKING']
+          - name: country
+            description: "Customer country code"
+
+      - name: accounts
+        description: "Raw bank account data"
+        columns:
+          - name: account_id
+            description: "Unique account identifier"
+            tests:
+              - not_null
+              - unique
+          - name: customer_id
+            description: "Foreign key to customers"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('bronze', 'customers')
+                  field: customer_id
+          - name: account_type
+            description: "Type of bank account"
+            tests:
+              - accepted_values:
+                  values: ['SAVINGS', 'CHECKING', 'CREDIT_CARD', 'LOAN']
+          - name: currency
+            description: "Account currency code"
+          - name: balance
+            description: "Current account balance (CONFIDENTIAL)"
+          - name: status
+            description: "Account status"
+            tests:
+              - accepted_values:
+                  values: ['ACTIVE', 'INACTIVE', 'SUSPENDED']
+          - name: opened_date
+            description: "Account opening date"
+
+      - name: transactions
+        description: "Raw transaction data from payment systems"
+        columns:
+          - name: transaction_id
+            description: "Unique transaction identifier"
+            tests:
+              - not_null
+              - unique
+          - name: account_id
+            description: "Foreign key to accounts"
+            tests:
+              - not_null
+          - name: transaction_type
+            description: "DEBIT or CREDIT"
+          - name: amount
+            description: "Transaction amount (CONFIDENTIAL)"
+          - name: currency
+            description: "Transaction currency code"
+          - name: merchant_name
+            description: "Name of merchant"
+          - name: merchant_category
+            description: "Merchant category code"
+          - name: transaction_timestamp
+            description: "Timestamp of transaction"
+          - name: country
+            description: "Country where transaction occurred"
+          - name: status
+            description: "Transaction status"
+          - name: is_international
+            description: "Whether transaction is cross-border"
+
+      - name: aml_alerts
+        description: "Raw AML screening alerts"
+        columns:
+          - name: alert_id
+            description: "Unique alert identifier"
+            tests:
+              - not_null
+              - unique
+          - name: transaction_id
+            description: "Related transaction ID"
+          - name: account_id
+            description: "Related account ID"
+          - name: alert_type
+            description: "Type of AML alert"
+          - name: severity
+            description: "Alert severity level"
+          - name: status
+            description: "Alert processing status"
+          - name: created_at
+            description: "Alert creation timestamp"
+          - name: assigned_to
+            description: "Assigned compliance officer"

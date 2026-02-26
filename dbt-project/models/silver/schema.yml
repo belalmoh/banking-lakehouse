@@ -1,0 +1,126 @@
+# =============================================================================
+# Silver Layer - Model Schema & Tests
+# =============================================================================
+
+version: 2
+
+models:
+  - name: transactions_cleansed
+    description: >
+      Cleansed transactions from Bronze layer. Includes deduplication,
+      type casting, currency validation, and AML flagging logic.
+      Incremental model using merge strategy on transaction_id.
+    columns:
+      - name: transaction_id
+        description: "Unique transaction identifier"
+        tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: "Foreign key to accounts"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('accounts_cleansed')
+              field: account_id
+      - name: transaction_type
+        description: "DEBIT or CREDIT"
+        tests:
+          - accepted_values:
+              values: ['DEBIT', 'CREDIT']
+      - name: amount
+        description: "Transaction amount (must be positive)"
+        tests:
+          - not_null
+      - name: currency
+        description: "ISO currency code"
+        tests:
+          - accepted_values:
+              values: ['AED', 'USD', 'EUR', 'GBP']
+      - name: status
+        description: "Transaction processing status"
+        tests:
+          - accepted_values:
+              values: ['COMPLETED', 'PENDING', 'FAILED']
+      - name: aml_flag
+        description: "Whether transaction is flagged for AML review"
+
+  - name: customers_cleansed
+    description: >
+      Cleansed customer profiles with name standardization, email validation,
+      and risk categorization. Incremental merge on customer_id.
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        tests:
+          - not_null
+      - name: last_name
+        tests:
+          - not_null
+      - name: kyc_status
+        description: "KYC verification status"
+        tests:
+          - accepted_values:
+              values: ['VERIFIED', 'PENDING', 'REJECTED']
+      - name: customer_segment
+        tests:
+          - accepted_values:
+              values: ['RETAIL', 'CORPORATE', 'PRIVATE_BANKING']
+      - name: risk_category
+        description: "Derived risk category based on risk_score"
+        tests:
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+
+  - name: accounts_cleansed
+    description: >
+      Cleansed bank accounts with standardized status values,
+      derived account age, and type validation.
+    columns:
+      - name: account_id
+        description: "Unique account identifier"
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: "Foreign key to customers"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('customers_cleansed')
+              field: customer_id
+      - name: account_type
+        tests:
+          - accepted_values:
+              values: ['SAVINGS', 'CHECKING', 'CREDIT_CARD', 'LOAN']
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['ACTIVE', 'INACTIVE', 'SUSPENDED']
+
+  - name: aml_alerts_cleansed
+    description: >
+      Cleansed AML alerts with severity scoring and alert age tracking.
+      Incremental merge on alert_id.
+    columns:
+      - name: alert_id
+        description: "Unique alert identifier"
+        tests:
+          - not_null
+          - unique
+      - name: severity
+        tests:
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['NEW', 'INVESTIGATING', 'CLEARED', 'ESCALATED']
+      - name: alert_type
+        tests:
+          - accepted_values:
+              values: ['HIGH_VALUE', 'SUSPICIOUS_PATTERN', 'VELOCITY', 'GEO_ANOMALY']

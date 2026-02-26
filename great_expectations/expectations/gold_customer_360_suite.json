@@ -1,0 +1,92 @@
+{
+    "expectation_suite_name": "gold_customer_360_suite",
+    "ge_cloud_id": null,
+    "data_asset_type": null,
+    "meta": {
+        "great_expectations_version": "0.17.19",
+        "description": "Data quality expectations for Gold Customer 360 view"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "customer_id"
+            },
+            "meta": {
+                "purpose": "Every customer must have an ID"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_unique",
+            "kwargs": {
+                "column": "customer_id"
+            },
+            "meta": {
+                "purpose": "One row per customer in 360 view"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "risk_category"
+            },
+            "meta": {
+                "purpose": "Risk category must be computed for all customers"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_in_set",
+            "kwargs": {
+                "column": "risk_category",
+                "value_set": [
+                    "LOW",
+                    "MEDIUM",
+                    "HIGH"
+                ]
+            },
+            "meta": {
+                "purpose": "Valid risk categories only"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "total_accounts",
+                "min_value": 0
+            },
+            "meta": {
+                "purpose": "Account count must be non-negative"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "total_transactions",
+                "min_value": 0
+            },
+            "meta": {
+                "purpose": "Transaction count must be non-negative"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "aml_alert_count",
+                "min_value": 0
+            },
+            "meta": {
+                "purpose": "AML alert count must be non-negative"
+            }
+        },
+        {
+            "expectation_type": "expect_table_row_count_to_be_between",
+            "kwargs": {
+                "min_value": 1000,
+                "max_value": 100000
+            },
+            "meta": {
+                "purpose": "Expected customer count range"
+            }
+        }
+    ]
+}

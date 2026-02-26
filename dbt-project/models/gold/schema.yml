@@ -1,0 +1,84 @@
+# =============================================================================
+# Gold Layer - Model Schema & Tests
+# =============================================================================
+
+version: 2
+
+models:
+  - name: customer_360
+    description: >
+      Comprehensive Customer 360 view combining customer profiles,
+      account summaries, transaction analytics, and AML alert metrics.
+      Full table refresh for consistent aggregations.
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        tests:
+          - not_null
+          - unique
+      - name: customer_name
+        description: "Full customer name (first + last)"
+        tests:
+          - not_null
+      - name: risk_category
+        description: "Derived risk category: LOW, MEDIUM, HIGH"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+      - name: total_accounts
+        description: "Number of accounts owned by customer"
+      - name: total_balance
+        description: "Sum of all account balances"
+      - name: total_transactions
+        description: "Total number of transactions across all accounts"
+      - name: aml_alert_count
+        description: "Number of AML alerts raised for this customer"
+      - name: composite_risk_score
+        description: "Weighted risk score combining KYC, AML, and transaction factors"
+
+  - name: aml_summary
+    description: >
+      Aggregated AML intelligence summarizing alerts by customer,
+      alert type, and severity. Includes resolution rates and
+      financial impact analysis.
+    columns:
+      - name: customer_id
+        description: "Customer associated with alerts"
+        tests:
+          - not_null
+      - name: alert_type
+        description: "Type of AML alert"
+        tests:
+          - accepted_values:
+              values: ['HIGH_VALUE', 'SUSPICIOUS_PATTERN', 'VELOCITY', 'GEO_ANOMALY']
+      - name: alert_count
+        description: "Number of alerts of this type"
+        tests:
+          - not_null
+      - name: resolution_rate_pct
+        description: "Percentage of alerts resolved (cleared)"
+
+  - name: regulatory_report
+    description: >
+      CBUAE-ready regulatory report with privacy-preserving
+      customer identifiers (SHA-256 hashed), monthly transaction
+      summaries, risk categories, and AML exposure metrics.
+    columns:
+      - name: customer_hash
+        description: "SHA-256 hash of customer_id for privacy"
+        tests:
+          - not_null
+      - name: report_month
+        description: "Reporting month (yyyy-MM format)"
+        tests:
+          - not_null
+      - name: risk_category
+        tests:
+          - accepted_values:
+              values: ['LOW', 'MEDIUM', 'HIGH']
+      - name: regulatory_body
+        description: "Target regulatory body"
+        tests:
+          - accepted_values:
+              values: ['CBUAE']

@@ -1,0 +1,31 @@
+# =============================================================================
+# dbt Connection Profiles - Banking Lakehouse
+# =============================================================================
+
+banking_lakehouse:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: spark-master
+      port: 10001
+      schema: banking_lakehouse
+      connect_retries: 3
+      connect_timeout: 60
+
+    # Local development (direct Spark session)
+    local:
+      type: spark
+      method: session
+      schema: banking_lakehouse
+
+    # Production-like settings
+    prod:
+      type: spark
+      method: thrift
+      host: spark-master
+      port: 10001
+      schema: banking_lakehouse_prod
+      connect_retries: 5
+      connect_timeout: 120

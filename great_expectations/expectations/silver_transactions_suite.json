@@ -1,0 +1,100 @@
+{
+    "expectation_suite_name": "silver_transactions_suite",
+    "ge_cloud_id": null,
+    "data_asset_type": null,
+    "meta": {
+        "great_expectations_version": "0.17.19",
+        "description": "Data quality expectations for Silver cleansed transactions"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "transaction_id"
+            },
+            "meta": {
+                "purpose": "Primary key completeness after cleansing"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_unique",
+            "kwargs": {
+                "column": "transaction_id"
+            },
+            "meta": {
+                "purpose": "Deduplication validation"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "amount",
+                "min_value": 0.01,
+                "strict_min": true
+            },
+            "meta": {
+                "purpose": "All amounts must be positive after cleansing"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_in_set",
+            "kwargs": {
+                "column": "currency",
+                "value_set": [
+                    "AED",
+                    "USD",
+                    "EUR",
+                    "GBP"
+                ]
+            },
+            "meta": {
+                "purpose": "Only valid currencies after cleansing"
+            }
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "_cleansed_timestamp"
+            },
+            "meta": {
+                "purpose": "Cleansing metadata must be present"
+            }
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "_aml_flag"
+            },
+            "meta": {
+                "purpose": "AML flag must be computed"
+            }
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "transaction_date"
+            },
+            "meta": {
+                "purpose": "Derived date column must exist"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "_data_classification"
+            },
+            "meta": {
+                "purpose": "Data governance - classification required"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "_data_residency"
+            },
+            "meta": {
+                "purpose": "Data governance - residency tracking required"
+            }
+        }
+    ]
+}

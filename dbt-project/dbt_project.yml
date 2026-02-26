@@ -1,0 +1,45 @@
+# =============================================================================
+# dbt Project Configuration - Banking Lakehouse
+# =============================================================================
+
+name: 'banking_lakehouse'
+version: '1.0.0'
+config-version: 2
+
+profile: 'banking_lakehouse'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Model configurations
+models:
+  banking_lakehouse:
+    # Silver layer: incremental models
+    silver:
+      +materialized: incremental
+      +schema: silver
+      +tags: ['silver', 'cleansed']
+      +on_schema_change: 'append_new_columns'
+
+    # Gold layer: table models (full refresh)
+    gold:
+      +materialized: table
+      +schema: gold
+      +tags: ['gold', 'business']
+
+# Variables
+vars:
+  aml_high_value_threshold: 50000
+  high_risk_countries: ['IR', 'KP', 'MM', 'SY', 'YE', 'AF']
+  valid_currencies: ['AED', 'USD', 'EUR', 'GBP']
+  data_residency: 'UAE'

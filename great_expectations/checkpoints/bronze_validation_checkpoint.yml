@@ -1,0 +1,30 @@
+# =============================================================================
+# Great Expectations Checkpoint: Bronze Validation
+# =============================================================================
+
+name: bronze_validation_checkpoint
+config_version: 1.0
+template_name: null
+module_name: great_expectations.checkpoint
+class_name: Checkpoint
+
+run_name_template: "bronze_validation_%Y%m%d_%H%M%S"
+
+validations:
+  - batch_request:
+      datasource_name: banking_lakehouse
+      data_connector_name: default_runtime_data_connector
+      data_asset_name: bronze_transactions
+      runtime_parameters:
+        batch_data: null  # Populated at runtime with Spark DataFrame
+      batch_identifiers:
+        default_identifier_name: bronze_transactions_batch
+    expectation_suite_name: bronze_transactions_suite
+
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction
