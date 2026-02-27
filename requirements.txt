@@ -1,0 +1,7 @@
+faker==22.0.0
+pandas==2.1.4
+numpy==1.26.3
+pyspark==3.4.0
+delta-spark==2.4.0
+great-expectations==0.17.19
+boto3==1.28.25
