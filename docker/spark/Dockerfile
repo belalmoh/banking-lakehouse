@@ -36,9 +36,16 @@ RUN pip install --no-cache-dir \
     boto3==1.28.25 \
     pyarrow==12.0.1 \
     python-dotenv==1.0.0 \
-    loguru==0.7.0
+    loguru==0.7.0 \
+    dbt-core==1.11.6 \
+    dbt-spark==1.10.1
 
 # Copy Spark configuration
 COPY spark-defaults.conf /opt/bitnami/spark/conf/spark-defaults.conf
+
+# Copy dbt profiles
+RUN mkdir -p /home/spark/.dbt
+COPY dbt_profiles.yml /home/spark/.dbt/profiles.yml
+ENV DBT_PROFILES_DIR=/home/spark/.dbt
 
 USER 1001

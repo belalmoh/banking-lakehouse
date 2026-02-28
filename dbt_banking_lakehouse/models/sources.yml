@@ -1,0 +1,140 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw ingested data from source systems - immutable audit trail"
+    
+    # Delta Lake tables in Bronze bucket
+    meta:
+      owner: "Data Engineering Team"
+      data_classification: "CONFIDENTIAL"
+      data_residency: "UAE"
+    
+    tables:
+      - name: customers
+        description: "Raw customer master data from Core Banking system"
+        external:
+          location: 's3a://bronze/customers'
+          file_format: delta
+        
+        columns:
+          - name: customer_id
+            description: "Unique customer identifier"
+            tests:
+              - not_null
+              - unique
+          
+          - name: email
+            description: "Customer email address"
+            tests:
+              - not_null
+          
+          - name: kyc_status
+            description: "KYC verification status"
+            tests:
+              - accepted_values:
+                  values: ['VERIFIED', 'PENDING', 'REJECTED', 'EXPIRED']
+          
+          - name: risk_score
+            description: "Customer risk score (1-100)"
+            tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  min_value: 1
+                  max_value: 100
+          
+          - name: _data_residency
+            description: "Data residency for CBUAE compliance"
+            tests:
+              - accepted_values:
+                  values: ['UAE']
+      
+      - name: accounts
+        description: "Account master data"
+        external:
+          location: 's3a://bronze/accounts'
+          file_format: delta
+        
+        columns:
+          - name: account_id
+            description: "Unique account identifier"
+            tests:
+              - not_null
+              - unique
+          
+          - name: customer_id
+            description: "Foreign key to customers"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('bronze', 'customers')
+                  field: customer_id
+          
+          - name: balance
+            description: "Current account balance"
+            tests:
+              - not_null
+          
+          - name: currency
+            description: "Account currency"
+            tests:
+              - accepted_values:
+                  values: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR']
+      
+      - name: transactions
+        description: "Transaction detail records"
+        external:
+          location: 's3a://bronze/transactions'
+          file_format: delta
+        
+        columns:
+          - name: transaction_id
+            description: "Unique transaction identifier"
+            tests:
+              - not_null
+              - unique
+          
+          - name: account_id
+            description: "Foreign key to accounts"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('bronze', 'accounts')
+                  field: account_id
+          
+          - name: amount
+            description: "Transaction amount"
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+          
+          - name: status
+            description: "Transaction status"
+            tests:
+              - accepted_values:
+                  values: ['COMPLETED', 'PENDING', 'FAILED']
+      
+      - name: aml_alerts
+        description: "AML monitoring alerts"
+        external:
+          location: 's3a://bronze/aml_alerts'
+          file_format: delta
+        
+        columns:
+          - name: alert_id
+            tests:
+              - not_null
+              - unique
+          
+          - name: transaction_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('bronze', 'transactions')
+                  field: transaction_id
+          
+          - name: severity
+            tests:
+              - accepted_values:
+                  values: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']

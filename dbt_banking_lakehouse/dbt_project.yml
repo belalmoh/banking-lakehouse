@@ -1,0 +1,63 @@
+name: 'dbt_banking_lakehouse'
+version: '1.0.0'
+config-version: 2
+
+# Profile configuration (connects to Delta Lake via Spark)
+profile: 'banking_lakehouse'
+
+# Directory structure
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Compilation settings
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model configurations
+models:
+  dbt_banking_lakehouse:
+    # Silver layer models (cleansed data)
+    silver:
+      +materialized: incremental
+      +file_format: delta
+      +location_root: s3a://silver
+      +incremental_strategy: merge
+      +on_schema_change: "sync_all_columns"
+      +tags: ["silver", "daily"]
+      
+    # Gold layer models (aggregations)
+    gold:
+      +materialized: table
+      +file_format: delta
+      +location_root: s3a://gold
+      +tags: ["gold", "hourly"]
+
+# Testing
+tests:
+  +store_failures: true
+  +schema: dbt_test_failures
+
+# Seeds (reference data)
+seeds:
+  +schema: reference_data
+  +quote_columns: false
+
+# Variables (can be overridden at runtime)
+vars:
+  # Incremental run settings
+  lookback_days: 7
+  full_refresh: false
+  
+  # Data quality thresholds
+  max_null_percentage: 0.05  # 5% max nulls
+  min_expected_rows: 100
+  
+  # Business rules
+  high_value_threshold: 50000  # AED
+  risk_score_max: 100

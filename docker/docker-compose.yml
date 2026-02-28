@@ -73,6 +73,7 @@ services:
       - ./spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - ../spark-jobs:/opt/spark-jobs
       - ../data:/opt/data
+      - ../dbt_banking_lakehouse:/opt/dbt
     networks:
       - banking-network
 

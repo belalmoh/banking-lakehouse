@@ -1,0 +1,11 @@
+banking_lakehouse:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: session
+      schema: default
+      host: spark-master
+      port: 7077
+      connect_retries: 3
+      connect_timeout: 10

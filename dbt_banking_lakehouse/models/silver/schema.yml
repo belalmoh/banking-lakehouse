@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: customers_silver
+    description: "Clean customer master data with derived attributes"
+    
+    columns:
+      - name: customer_id
+        description: "Primary key"
+        tests:
+          - not_null
+          - unique
+      
+      - name: email
+        description: "Validated email address"
+        tests:
+          - not_null
+          - dbt_utils.not_empty_string
+      
+      - name: age_years
+        description: "Customer age in years"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 18
+              max_value: 120
+      
+      - name: risk_score
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 100
+  
+  - name: accounts_silver
+    description: "Clean account data with balance categorization"
+    
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+          - unique
+      
+      - name: customer_id
+        description: "Foreign key to customers"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('customers_silver')
+              field: customer_id
+      
+      - name: balance
+        tests:
+          - not_null
+  
+  - name: transactions_silver
+    description: "Clean transaction data with AML flags"
+    
+    columns:
+      - name: transaction_id
+        tests:
+          - not_null
+          - unique
+      
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('accounts_silver')
+              field: account_id
+      
+      - name: amount
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      
+      - name: high_value_flag
+        description: "AML screening flag for transactions > 50K AED"
+        tests:
+          - not_null
+  
+  - name: aml_alerts_silver
+    description: "AML alerts with SLA tracking"
+    
+    columns:
+      - name: alert_id
+        tests:
+          - not_null
+          - unique
+      
+      - name: transaction_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('transactions_silver')
+              field: transaction_id
+      
+      - name: sla_breach_flag
+        description: "Indicates if alert breached SLA"
+        tests:
+          - not_null
