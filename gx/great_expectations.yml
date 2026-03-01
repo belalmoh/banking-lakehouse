@@ -1,0 +1,128 @@
+# Great Expectations Configuration
+config_version: 3.0
+
+datasources:
+  bronze_lakehouse:
+    class_name: Datasource
+    execution_engine:
+      class_name: SparkDFExecutionEngine
+      spark_config:
+        spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+        spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+        spark.hadoop.fs.s3a.endpoint: http://minio:9000
+        spark.hadoop.fs.s3a.access.key: admin
+        spark.hadoop.fs.s3a.secret.key: admin123
+        spark.hadoop.fs.s3a.path.style.access: "true"
+        spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    
+    data_connectors:
+      bronze_delta_connector:
+        class_name: ConfiguredAssetFilesystemDataConnector
+        base_directory: s3a://bronze/
+        default_regex:
+          pattern: (.*)
+          group_names:
+            - table_name
+        assets:
+          customers:
+            pattern: customers
+          accounts:
+            pattern: accounts
+          transactions:
+            pattern: transactions
+          aml_alerts:
+            pattern: aml_alerts
+
+  silver_lakehouse:
+    class_name: Datasource
+    execution_engine:
+      class_name: SparkDFExecutionEngine
+      spark_config:
+        spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+        spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+        spark.hadoop.fs.s3a.endpoint: http://minio:9000
+        spark.hadoop.fs.s3a.access.key: admin
+        spark.hadoop.fs.s3a.secret.key: admin123
+        spark.hadoop.fs.s3a.path.style.access: "true"
+        spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    
+    data_connectors:
+      silver_delta_connector:
+        class_name: ConfiguredAssetFilesystemDataConnector
+        base_directory: s3a://silver/
+        default_regex:
+          pattern: (.*)
+          group_names:
+            - table_name
+        assets:
+          customers_silver:
+            pattern: customers_silver
+          accounts_silver:
+            pattern: accounts_silver
+          transactions_silver:
+            pattern: transactions_silver
+          aml_alerts_silver:
+            pattern: aml_alerts_silver
+
+  gold_lakehouse:
+    class_name: Datasource
+    execution_engine:
+      class_name: SparkDFExecutionEngine
+      spark_config:
+        spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+        spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+        spark.hadoop.fs.s3a.endpoint: http://minio:9000
+        spark.hadoop.fs.s3a.access.key: admin
+        spark.hadoop.fs.s3a.secret.key: admin123
+        spark.hadoop.fs.s3a.path.style.access: "true"
+        spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+    
+    data_connectors:
+      gold_delta_connector:
+        class_name: ConfiguredAssetFilesystemDataConnector
+        base_directory: s3a://gold/
+        default_regex:
+          pattern: (.*)
+          group_names:
+            - table_name
+        assets:
+          customer_360:
+            pattern: customer_360
+          aml_compliance_dashboard:
+            pattern: aml_compliance_dashboard
+
+stores:
+  expectations_store:
+    class_name: ExpectationsStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: expectations/
+
+  validations_store:
+    class_name: ValidationsStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: uncommitted/validations/
+
+  evaluation_parameter_store:
+    class_name: EvaluationParameterStore
+
+  checkpoint_store:
+    class_name: CheckpointStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: checkpoints/
+
+expectations_store_name: expectations_store
+validations_store_name: validations_store
+evaluation_parameter_store_name: evaluation_parameter_store
+checkpoint_store_name: checkpoint_store
+
+data_docs_sites:
+  local_site:
+    class_name: SiteBuilder
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: uncommitted/data_docs/local_site/
+    site_index_builder:
+      class_name: DefaultSiteIndexBuilder

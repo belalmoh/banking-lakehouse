@@ -1,0 +1,103 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "bronze.customers.critical",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 10000
+      },
+      "meta": {
+        "notes": "Minimum 10K customers expected from source system",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {
+        "notes": "Primary key - cannot be null",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {
+        "notes": "Primary key - must be unique",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "email"
+      },
+      "meta": {
+        "notes": "Email required for customer communication",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "email",
+        "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      },
+      "meta": {
+        "notes": "Email must be valid format",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "kyc_status",
+        "value_set": [
+          "VERIFIED",
+          "PENDING",
+          "REJECTED",
+          "EXPIRED"
+        ]
+      },
+      "meta": {
+        "notes": "KYC status must be valid enum value",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "risk_score",
+        "max_value": 100,
+        "min_value": 1
+      },
+      "meta": {
+        "notes": "Risk score range validation",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "_data_residency",
+        "value_set": [
+          "UAE"
+        ]
+      },
+      "meta": {
+        "notes": "CRITICAL: All customer data must reside in UAE for CBUAE compliance",
+        "regulatory": "CBUAE",
+        "severity": "CRITICAL"
+      }
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {
+    "great_expectations_version": "0.17.19"
+  }
+}

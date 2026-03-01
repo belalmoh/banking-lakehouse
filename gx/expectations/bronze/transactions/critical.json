@@ -1,0 +1,92 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "bronze.transactions.critical",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 100000
+      },
+      "meta": {
+        "notes": "Minimum 100K transactions expected",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "transaction_id"
+      },
+      "meta": {
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {
+        "column": "transaction_id"
+      },
+      "meta": {
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "amount"
+      },
+      "meta": {
+        "notes": "Transaction amount is required",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "amount",
+        "min_value": 0
+      },
+      "meta": {
+        "business_rule": "BR-001",
+        "notes": "Transaction amounts cannot be negative",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "currency",
+        "value_set": [
+          "AED",
+          "USD",
+          "EUR",
+          "GBP",
+          "SAR",
+          "INR"
+        ]
+      },
+      "meta": {
+        "notes": "Only supported currencies allowed",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "status",
+        "mostly": 0.9,
+        "value_set": [
+          "COMPLETED"
+        ]
+      },
+      "meta": {
+        "notes": "At least 90% of transactions should complete successfully",
+        "severity": "MEDIUM"
+      }
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {
+    "great_expectations_version": "0.17.19"
+  }
+}

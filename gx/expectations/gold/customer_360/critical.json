@@ -1,0 +1,88 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "gold.customer_360.critical",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 10000
+      },
+      "meta": {
+        "notes": "Customer 360 should have one row per customer",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": {
+        "column": "total_engagement_score"
+      },
+      "meta": {
+        "notes": "Engagement score required for marketing campaigns",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "engagement_tier",
+        "value_set": [
+          "HIGHLY_ENGAGED",
+          "MODERATELY_ENGAGED",
+          "LOW_ENGAGEMENT",
+          "INACTIVE"
+        ]
+      },
+      "meta": {
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": {
+        "column": "estimated_annual_revenue_aed"
+      },
+      "meta": {
+        "notes": "Revenue estimate required for CLV analysis",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "churn_risk",
+        "value_set": [
+          "HIGH_CHURN_RISK",
+          "MEDIUM_CHURN_RISK",
+          "LOW_CHURN_RISK"
+        ]
+      },
+      "meta": {
+        "notes": "Churn risk required for retention campaigns",
+        "severity": "HIGH"
+      }
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {
+    "great_expectations_version": "0.17.19"
+  }
+}

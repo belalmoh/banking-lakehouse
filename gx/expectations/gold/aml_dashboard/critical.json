@@ -1,0 +1,56 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "gold.aml_dashboard.critical",
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "alert_id"
+      },
+      "meta": {
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": {
+        "column": "priority_rank"
+      },
+      "meta": {
+        "notes": "Priority rank required for analyst assignment",
+        "severity": "CRITICAL"
+      }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": {
+        "column": "composite_risk_score"
+      },
+      "meta": {
+        "notes": "Composite risk score for holistic risk assessment",
+        "severity": "HIGH"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "sla_status",
+        "value_set": [
+          "COMPLETED",
+          "OVERDUE",
+          "AT_RISK",
+          "ON_TRACK"
+        ]
+      },
+      "meta": {
+        "notes": "SLA status for compliance monitoring",
+        "regulatory": "CBUAE",
+        "severity": "CRITICAL"
+      }
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {
+    "great_expectations_version": "0.17.19"
+  }
+}
