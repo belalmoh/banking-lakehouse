@@ -163,6 +163,7 @@ services:
     volumes:
       - ../airflow-dags:/opt/airflow/dags
       - ../spark-jobs:/opt/spark-jobs
+      - ../dbt_banking_lakehouse:/opt/airflow/dbt_banking_lakehouse
       - airflow-logs:/opt/airflow/logs
     command: webserver
     healthcheck:
@@ -193,6 +194,7 @@ services:
     volumes:
       - ../airflow-dags:/opt/airflow/dags
       - ../spark-jobs:/opt/spark-jobs
+      - ../dbt_banking_lakehouse:/opt/airflow/dbt_banking_lakehouse
       - airflow-logs:/opt/airflow/logs
     command: scheduler
     networks:

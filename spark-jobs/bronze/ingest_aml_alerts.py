@@ -7,6 +7,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from delta import configure_spark_with_delta_pip
+from datetime import datetime
 
 def create_spark_session(app_name="Bronze-AML-Alerts"):
     my_packages = [

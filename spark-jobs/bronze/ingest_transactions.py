@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from delta import configure_spark_with_delta_pip
+from datetime import datetime
 
 def create_spark_session(app_name="Bronze-Transactions"):
     my_packages = [
@@ -160,16 +161,20 @@ def ingest_to_bronze(spark, source_path, target_path, run_date=None):
     
     print(f"\n✅ BRONZE INGESTION COMPLETE!")
     
-    # Optimization for query performance
+    # Optimization for query performance (may fail if existing data uses snappy compression)
     print("\n[Optimizing Delta table...]")
-    from delta.tables import DeltaTable
-    delta_table = DeltaTable.forPath(spark, target_path)
-    
-    # OPTIMIZE with Z-ordering on frequently filtered columns
-    delta_table.optimize().executeZOrderBy("account_id", "amount")
-    print("✅ Z-ordering applied on account_id and amount")
-    
-    delta_table.history(3).select("version", "timestamp", "operation").show(truncate=False)
+    try:
+        from delta.tables import DeltaTable
+        delta_table = DeltaTable.forPath(spark, target_path)
+        
+        # OPTIMIZE with Z-ordering on frequently filtered columns
+        delta_table.optimize().executeZOrderBy("account_id", "amount")
+        print("✅ Z-ordering applied on account_id and amount")
+        
+        delta_table.history(3).select("version", "timestamp", "operation").show(truncate=False)
+    except Exception as e:
+        print(f"⚠️  OPTIMIZE skipped (non-critical): {str(e)[:200]}")
+        print("   This is expected when running from Airflow. Run OPTIMIZE on Spark master separately.")
 
 def main():
     SOURCE_PATH = "s3a://source/banking/transactions.csv"

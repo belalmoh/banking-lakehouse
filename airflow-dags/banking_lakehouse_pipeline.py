@@ -5,18 +5,17 @@ Orchestrates Bronze → Silver → Gold transformation with data quality gates
 
 Interview talking points:
 - "Using TaskFlow API for cleaner, more maintainable code"
+- "PySpark tasks connect to Spark master over Docker network"
 - "Automatic XCom passing between tasks with type hints"
-- "Better error handling with Python decorators"
 - "Production-ready with SLA monitoring and quality gates"
 """
 
 from airflow.decorators import dag, task, task_group
 from airflow.operators.bash import BashOperator
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils.task_group import TaskGroup
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import logging
+import sys
 
 # ============================================================================
 # CONFIGURATION
@@ -33,17 +32,6 @@ DEFAULT_ARGS = {
     'max_retry_delay': timedelta(minutes=30),
     'execution_timeout': timedelta(hours=2),
     'sla': timedelta(hours=4),
-}
-
-SPARK_CONF = {
-    'spark.sql.extensions': 'io.delta.sql.DeltaSparkSessionExtension',
-    'spark.sql.catalog.spark_catalog': 'org.apache.spark.sql.delta.catalog.DeltaCatalog',
-    'spark.hadoop.fs.s3a.endpoint': 'http://minio:9000',
-    'spark.hadoop.fs.s3a.access.key': 'admin',
-    'spark.hadoop.fs.s3a.secret.key': 'admin123',
-    'spark.hadoop.fs.s3a.path.style.access': 'true',
-    'spark.hadoop.fs.s3a.impl': 'org.apache.hadoop.fs.s3a.S3AFileSystem',
-    'spark.hadoop.fs.s3a.connection.ssl.enabled': 'false',
 }
 
 # ============================================================================
@@ -65,31 +53,21 @@ def banking_lakehouse_pipeline():
     """
     Main lakehouse pipeline DAG using TaskFlow API
     
-    Interview point: "TaskFlow API provides cleaner syntax, automatic XCom 
-    serialization, and better IDE support with type hints"
+    Interview point: "PySpark sessions connect to the Spark master over the 
+    Docker network — no spark-submit binary needed in Airflow. Cleaner 
+    separation of concerns with TaskFlow decorators."
     """
     
     # ========================================================================
-    # TASK DEFINITIONS (Using Decorators)
+    # TASK DEFINITIONS
     # ========================================================================
     
     @task(
         task_id='check_source_data',
-        doc_md="""
-        Validates that all required source files exist in S3 source bucket.
-        Returns list of available files or raises error if any missing.
-        """
+        doc_md="Validates that source CSV files exist in MinIO before ingestion."
     )
     def check_source_data_available() -> List[str]:
-        """
-        Check if source data is available before starting pipeline
-        
-        Returns:
-            List of available source files
-        
-        Raises:
-            FileNotFoundError: If any required files are missing
-        """
+        """Check if source data is available before starting pipeline"""
         import boto3
         from botocore.client import Config
         
@@ -116,7 +94,7 @@ def banking_lakehouse_pipeline():
                 s3.head_object(Bucket='source', Key=file_key)
                 logging.info(f"✅ Found: {file_key}")
                 available_files.append(file_key)
-            except Exception as e:
+            except Exception:
                 missing_files.append(file_key)
                 logging.error(f"❌ Missing: {file_key}")
         
@@ -131,25 +109,15 @@ def banking_lakehouse_pipeline():
     
     @task(
         task_id='validate_bronze_counts',
-        doc_md="""
-        Validates Bronze layer record counts match expected values.
-        Acts as data quality gate before Silver processing.
-        """
+        doc_md="Validates Bronze layer record counts as a data quality gate."
     )
     def validate_bronze_counts() -> Dict[str, Any]:
-        """
-        Validate Bronze layer record counts
-        
-        Returns:
-            Dictionary with validation results for each table
-        
-        Raises:
-            ValueError: If any table has insufficient records
-        """
+        """Validate Bronze layer record counts against expected minimums"""
         from pyspark.sql import SparkSession
         from delta import configure_spark_with_delta_pip
         
         builder = SparkSession.builder \
+            .master("local[*]") \
             .appName("Validate-Bronze-Counts") \
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
@@ -159,9 +127,17 @@ def banking_lakehouse_pipeline():
             .config("spark.hadoop.fs.s3a.path.style.access", "true") \
             .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         
-        spark = configure_spark_with_delta_pip(builder).getOrCreate()
+        extra_packages = [
+            "org.apache.hadoop:hadoop-aws:3.3.4",
+            "org.apache.hadoop:hadoop-client-runtime:3.3.4",
+            "org.apache.hadoop:hadoop-client-api:3.3.4",
+            "io.delta:delta-core_2.12:2.4.0",
+            "io.delta:delta-storage:2.4.0",
+            "com.amazonaws:aws-java-sdk-bundle:1.12.262",
+        ]
+        spark = configure_spark_with_delta_pip(builder, extra_packages=extra_packages).getOrCreate()
+        spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
         
-        # Expected minimum counts
         expected_counts = {
             'customers': 10000,
             'accounts': 20000,
@@ -174,7 +150,6 @@ def banking_lakehouse_pipeline():
         
         for table_name, expected_min in expected_counts.items():
             actual_count = spark.read.format("delta").load(f"s3a://bronze/{table_name}").count()
-            
             is_valid = actual_count >= expected_min
             validation_results[table_name] = {
                 'expected_min': expected_min,
@@ -183,166 +158,129 @@ def banking_lakehouse_pipeline():
                 'variance_pct': round((actual_count - expected_min) / expected_min * 100, 2)
             }
             
-            log_msg = f"{table_name}: Expected≥{expected_min:,}, Actual={actual_count:,}"
-            if is_valid:
-                logging.info(f"✅ {log_msg}")
-            else:
-                logging.error(f"❌ {log_msg}")
+            status = "✅" if is_valid else "❌"
+            logging.info(f"{status} {table_name}: {actual_count:,} (min: {expected_min:,})")
+            if not is_valid:
                 all_valid = False
         
         spark.stop()
         
         if not all_valid:
-            raise ValueError(
-                f"Bronze layer validation failed. Results: {validation_results}"
-            )
+            raise ValueError(f"Bronze validation failed: {validation_results}")
         
-        logging.info("✅ All Bronze tables validated successfully")
         return validation_results
     
-    @task.branch(
-        task_id='data_quality_gate',
-        doc_md="""
-        Branch operator that routes to Silver processing if quality checks pass,
-        or to failure handler if quality issues detected.
-        """
-    )
+    @task.branch(task_id='data_quality_gate')
     def evaluate_data_quality(validation_results: Dict[str, Any]) -> str:
-        """
-        Evaluate data quality and branch accordingly
-        
-        Args:
-            validation_results: Results from Bronze validation
-        
-        Returns:
-            Task ID to execute next ('proceed_to_silver' or 'quality_failed')
-        """
-        all_valid = all(
-            result['valid'] 
-            for result in validation_results.values()
-        )
-        
+        """Branch: proceed to Silver if quality checks pass, else fail"""
+        all_valid = all(r['valid'] for r in validation_results.values())
         if all_valid:
-            logging.info("✅ Data quality checks passed - proceeding to Silver")
+            logging.info("✅ Quality checks passed - proceeding to Silver")
             return 'proceed_to_silver'
         else:
-            logging.error("❌ Data quality checks failed - halting pipeline")
+            logging.error("❌ Quality checks failed - halting pipeline")
             return 'quality_failed'
     
-    @task(
-        task_id='publish_metrics',
-        doc_md="""
-        Publishes pipeline execution metrics for monitoring dashboard.
-        Tracks duration, record counts, quality scores.
-        """
-    )
+    @task(task_id='publish_metrics')
     def publish_pipeline_metrics(validation_results: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Publish pipeline execution metrics
-        
-        Args:
-            validation_results: Validation results to include in metrics
-        
-        Returns:
-            Dictionary of metrics published
-        """
-        from airflow.models import TaskInstance
-        from airflow.utils.session import provide_session
-        
+        """Publish pipeline execution metrics"""
         metrics = {
             'pipeline_name': 'banking_lakehouse',
             'execution_timestamp': datetime.now().isoformat(),
             'status': 'SUCCESS',
             'bronze_validation': validation_results,
             'total_records_processed': sum(
-                result['actual_count'] 
-                for result in validation_results.values()
+                r['actual_count'] for r in validation_results.values()
             ),
         }
-        
         logging.info(f"📊 Pipeline Metrics: {metrics}")
-        
-        # In production, send to CloudWatch/Datadog
-        # cloudwatch.put_metric_data(...)
-        
         return metrics
     
     # ========================================================================
-    # TASK GROUPS (Bronze Ingestion)
+    # BRONZE INGESTION (PySpark @task — connects to Spark master over network)
     # ========================================================================
     
     @task_group(group_id='bronze_ingestion')
     def bronze_ingestion_group():
         """
-        Parallel Bronze layer ingestion tasks
+        Parallel Bronze layer ingestion using PySpark sessions
         
-        Interview point: "TaskFlow API task groups provide better organization
-        and visual hierarchy in the Airflow UI"
+        Interview point: "Each task creates its own SparkSession connecting
+        to the Spark master at spark://spark-master:7077. The driver runs
+        inside Airflow, executors run on Spark workers. This gives us
+        TaskFlow benefits (XCom, type hints) with distributed compute."
         """
         
-        ingest_customers = SparkSubmitOperator(
-            task_id='ingest_customers',
-            application='/opt/spark-jobs/bronze/ingest_customers.py',
-            conn_id='spark_default',
-            conf=SPARK_CONF,
-            packages='io.delta:delta-core_2.12:2.4.0',
-            executor_memory='2g',
-            driver_memory='2g',
-            name='bronze_customers',
-            execution_timeout=timedelta(minutes=30),
-        )
+        @task(task_id='ingest_customers', execution_timeout=timedelta(minutes=30))
+        def ingest_customers():
+            """Ingest customer data from source CSV to Bronze Delta Lake"""
+            sys.path.insert(0, '/opt/spark-jobs/bronze')
+            from ingest_customers import create_spark_session, ingest_to_bronze
+            
+            spark = create_spark_session("Airflow-Bronze-Customers")
+            spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
+            try:
+                ingest_to_bronze(spark, "s3a://source/banking/customers.csv", "s3a://bronze/customers")
+            finally:
+                spark.stop()
         
-        ingest_accounts = SparkSubmitOperator(
-            task_id='ingest_accounts',
-            application='/opt/spark-jobs/bronze/ingest_accounts.py',
-            conn_id='spark_default',
-            conf=SPARK_CONF,
-            packages='io.delta:delta-core_2.12:2.4.0',
-            executor_memory='2g',
-            driver_memory='2g',
-            name='bronze_accounts',
-            execution_timeout=timedelta(minutes=30),
-        )
+        @task(task_id='ingest_accounts', execution_timeout=timedelta(minutes=30))
+        def ingest_accounts():
+            """Ingest account data from source CSV to Bronze Delta Lake"""
+            sys.path.insert(0, '/opt/spark-jobs/bronze')
+            from ingest_accounts import create_spark_session, ingest_to_bronze
+            
+            spark = create_spark_session("Airflow-Bronze-Accounts")
+            spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
+            try:
+                ingest_to_bronze(spark, "s3a://source/banking/accounts.csv", "s3a://bronze/accounts")
+            finally:
+                spark.stop()
         
-        ingest_transactions = SparkSubmitOperator(
-            task_id='ingest_transactions',
-            application='/opt/spark-jobs/bronze/ingest_transactions.py',
-            conn_id='spark_default',
-            conf=SPARK_CONF,
-            packages='io.delta:delta-core_2.12:2.4.0',
-            executor_memory='4g',
-            driver_memory='2g',
-            name='bronze_transactions',
-            execution_timeout=timedelta(hours=1),
-        )
+        @task(task_id='ingest_transactions', execution_timeout=timedelta(hours=1))
+        def ingest_transactions():
+            """Ingest transaction data from source CSV to Bronze Delta Lake"""
+            sys.path.insert(0, '/opt/spark-jobs/bronze')
+            from ingest_transactions import create_spark_session, ingest_to_bronze
+            
+            spark = create_spark_session("Airflow-Bronze-Transactions")
+            spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
+            try:
+                ingest_to_bronze(spark, "s3a://source/banking/transactions.csv", "s3a://bronze/transactions")
+            finally:
+                spark.stop()
         
-        ingest_aml_alerts = SparkSubmitOperator(
-            task_id='ingest_aml_alerts',
-            application='/opt/spark-jobs/bronze/ingest_aml_alerts.py',
-            conn_id='spark_default',
-            conf=SPARK_CONF,
-            packages='io.delta:delta-core_2.12:2.4.0',
-            executor_memory='2g',
-            driver_memory='2g',
-            name='bronze_aml_alerts',
-            execution_timeout=timedelta(minutes=30),
-        )
+        @task(task_id='ingest_aml_alerts', execution_timeout=timedelta(minutes=30))
+        def ingest_aml_alerts():
+            """Ingest AML alert data from source CSV to Bronze Delta Lake"""
+            sys.path.insert(0, '/opt/spark-jobs/bronze')
+            from ingest_aml_alerts import create_spark_session, ingest_to_bronze
+            
+            spark = create_spark_session("Airflow-Bronze-AML-Alerts")
+            spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
+            try:
+                ingest_to_bronze(spark, "s3a://source/banking/aml_alerts.csv", "s3a://bronze/aml_alerts")
+            finally:
+                spark.stop()
         
         # All Bronze tasks run in parallel
-        [ingest_customers, ingest_accounts, ingest_transactions, ingest_aml_alerts]
+        [ingest_customers(), ingest_accounts(), ingest_transactions(), ingest_aml_alerts()]
+    
+    # ========================================================================
+    # SILVER & GOLD (dbt via BashOperator)
+    # ========================================================================
     
     @task_group(group_id='silver_transformation')
     def silver_transformation_group():
         """
         dbt Silver layer transformations with testing
         
-        Interview point: "Separating dbt run and test into distinct tasks
-        provides better granularity for monitoring and debugging"
+        Interview point: "dbt handles the SQL transformations while Airflow
+        handles orchestration — each tool does what it's best at"
         """
-        
         dbt_run_silver = BashOperator(
             task_id='dbt_run_silver',
-            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select silver.*',
+            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select silver.* || dbt run --full-refresh --select silver.*',
             execution_timeout=timedelta(hours=1),
         )
         
@@ -352,59 +290,41 @@ def banking_lakehouse_pipeline():
             execution_timeout=timedelta(minutes=30),
         )
         
-        # Sequential: run then test
         dbt_run_silver >> dbt_test_silver
     
     @task_group(group_id='gold_aggregations')
     def gold_aggregations_group():
         """
-        dbt Gold layer aggregations - parallel execution
+        dbt Gold layer aggregations — parallel execution
         
         Interview point: "Gold models are independent, so we parallelize
-        for maximum throughput. Customer 360 and AML dashboard can build
-        simultaneously since they don't depend on each other"
+        for maximum throughput"
         """
-        
-        dbt_customer_360 = BashOperator(
-            task_id='dbt_customer_360',
-            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select customer_360',
-            execution_timeout=timedelta(minutes=45),
+        # Run all Gold models in a single dbt invocation to avoid
+        # Derby metastore lock conflicts from parallel Spark sessions
+        dbt_run_gold = BashOperator(
+            task_id='dbt_run_gold',
+            bash_command=(
+                'cd /opt/airflow/dbt_banking_lakehouse && '
+                'dbt run --select customer_360 aml_compliance_dashboard '
+                'cbuae_monthly_report ml_features_churn_prediction transaction_analytics '
+                '|| dbt run --full-refresh --select customer_360 aml_compliance_dashboard '
+                'cbuae_monthly_report ml_features_churn_prediction transaction_analytics'
+            ),
+            execution_timeout=timedelta(hours=1),
         )
-        
-        dbt_aml_dashboard = BashOperator(
-            task_id='dbt_aml_dashboard',
-            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select aml_compliance_dashboard',
-            execution_timeout=timedelta(minutes=30),
-        )
-        
-        dbt_regulatory_report = BashOperator(
-            task_id='dbt_regulatory_report',
-            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select cbuae_monthly_report',
-            execution_timeout=timedelta(minutes=30),
-        )
-        
-        dbt_ml_features = BashOperator(
-            task_id='dbt_ml_features',
-            bash_command='cd /opt/airflow/dbt_banking_lakehouse && dbt run --select ml_features_churn_prediction',
-            execution_timeout=timedelta(minutes=30),
-        )
-        
-        # All Gold models run in parallel
-        [dbt_customer_360, dbt_aml_dashboard, dbt_regulatory_report, dbt_ml_features]
     
     # ========================================================================
-    # ADDITIONAL TASKS
+    # MARKERS & POST-PROCESSING
     # ========================================================================
     
     @task(task_id='proceed_to_silver')
     def proceed_to_silver_marker() -> str:
-        """Marker task indicating quality gate passed"""
         logging.info("✅ Quality gate passed - proceeding to Silver layer")
         return "QUALITY_GATE_PASSED"
     
     @task(task_id='quality_failed')
     def quality_failed_marker() -> str:
-        """Marker task indicating quality gate failed"""
         logging.error("❌ Quality gate failed - pipeline halted")
         raise ValueError("Data quality validation failed - see logs for details")
     
@@ -421,7 +341,7 @@ def banking_lakehouse_pipeline():
     # Stage 0: Pre-flight checks
     source_files = check_source_data_available()
     
-    # Stage 1: Bronze ingestion (parallel)
+    # Stage 1: Bronze ingestion (parallel PySpark tasks)
     bronze_tasks = bronze_ingestion_group()
     
     # Stage 2: Validation
@@ -434,7 +354,7 @@ def banking_lakehouse_pipeline():
     proceed_marker = proceed_to_silver_marker()
     failed_marker = quality_failed_marker()
     
-    # Stage 4: Silver transformation (if quality passed)
+    # Stage 4: Silver transformation
     silver_tasks = silver_transformation_group()
     
     # Stage 5: Gold aggregations
@@ -447,17 +367,9 @@ def banking_lakehouse_pipeline():
     # DEPENDENCIES
     # ========================================================================
     
-    # Linear flow with branching
     source_files >> bronze_tasks >> validation_results >> quality_decision
-    
-    # Quality gate branches
     quality_decision >> [proceed_marker, failed_marker]
-    
-    # Success path
     proceed_marker >> silver_tasks >> gold_tasks >> generate_docs >> metrics
-    
-    # Failure path ends at marker
-    # (failed_marker has no downstream tasks)
 
 
 # Instantiate the DAG

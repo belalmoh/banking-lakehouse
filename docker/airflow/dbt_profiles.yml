@@ -1,0 +1,21 @@
+banking_lakehouse:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: session
+      schema: silver  # Default schema
+      host: spark-master
+      port: 7077
+      
+      # Delta Lake configurations
+      connect_retries: 3
+      connect_timeout: 10
+      retry_all: true
+      
+    prod:
+      type: spark
+      method: session
+      schema: production
+      host: spark-master
+      port: 7077

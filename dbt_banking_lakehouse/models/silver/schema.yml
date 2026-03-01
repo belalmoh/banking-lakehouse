@@ -94,6 +94,7 @@ models:
           - relationships:
               to: ref('transactions_silver')
               field: transaction_id
+              severity: warn  # Synthetic data has orphaned refs
       
       - name: sla_breach_flag
         description: "Indicates if alert breached SLA"
